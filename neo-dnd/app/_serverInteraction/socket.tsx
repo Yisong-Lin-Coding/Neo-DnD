@@ -42,26 +42,38 @@ export function getSocket() {
   if (!socketPromise) {
     socketPromise = new Promise<Socket>((resolve, reject) => {
       const clientSessionId = getOrCreateSessionId();
-      const localSocket = io(localURL, {
+      const isLocalBrowser =
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
+      const primaryURL = isLocalBrowser ? localURL : fallbackURL;
+      const secondaryURL = isLocalBrowser ? fallbackURL : undefined;
+
+      if (!primaryURL) {
+        reject(new Error("Socket server URL is not configured."));
+        return;
+      }
+
+      const primarySocket = io(primaryURL, {
         timeout: 5000,
         reconnection: false,
         query: { sessionId: clientSessionId },
       });
 
-      localSocket.on("connect", () => {
-        socket = localSocket;
-        resolve(localSocket);
+      primarySocket.on("connect", () => {
+        socket = primarySocket;
+        resolve(primarySocket);
       });
 
-      localSocket.on("connect_error", () => {
-        localSocket.disconnect();
+      primarySocket.on("connect_error", () => {
+        primarySocket.disconnect();
 
-        if (!fallbackURL) {
-          reject(new Error("Local server is offline and no fallback URL is set."));
+        if (!secondaryURL) {
+          reject(new Error("Socket connection failed and no fallback URL is set."));
           return;
         }
 
-        const fallbackSocket = io(fallbackURL, {
+        const fallbackSocket = io(secondaryURL, {
           timeout: 5000,
           reconnection: false,
           query: { sessionId: clientSessionId },

@@ -1,12 +1,19 @@
 import { Server } from "socket.io";
+import { createServer } from "http";
 import {callAPI} from "./handlers/APIHandler";
 import connectDB from "./db";
 import {loadModels} from "./handlers/modelHandler";
 
-const io = new Server(3001, {
-    cors: {
-        origin: "*",
-    },
+const port = Number(process.env.PORT) || 3001;
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean)
+  : "*";
+
+const httpServer = createServer();
+const io = new Server(httpServer, {
+  cors: {
+    origin: corsOrigin,
+  },
 });
 
 
@@ -33,7 +40,9 @@ io.on("connection", (socket) => {
 
 
 
-console.log("Server is running on port 3001");
+httpServer.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
 })();
 
 
